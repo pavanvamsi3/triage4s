@@ -1,0 +1,13 @@
+target/
+project/project/
+.bsp/
+.metals/
+.idea/
+.env
+.env.*
+!.env.example
+.DS_Store
+fixtures/issues/*.json
+fixtures/replay/*.json
+fixtures/evaluation/*-local.json
+*.log
