@@ -72,6 +72,79 @@ class TriageSpec extends AnyFunSuite:
     )
     invalid.foreach(r => assert(Validation.validateResult(input, taxonomy, r).isLeft))
 
+  test("exact evidence preserves newlines and Unicode in the specified source field"):
+    val source = input.copy(body = "The CLI reports:\nÉchec au démarrage 🚀")
+    val result = valid.copy(evidence =
+      valid.evidence.updated(
+        0,
+        Evidence("issueType", "body", "reports:\nÉchec au démarrage 🚀")
+      )
+    )
+    assert(Validation.validateResult(source, taxonomy, result) == Right(result))
+
+  test("evidence with changed letter case is rejected"):
+    val result = valid.copy(evidence =
+      valid.evidence.updated(
+        0,
+        Evidence("issueType", "title", "CRASHES")
+      )
+    )
+    assert(Validation.validateResult(input, taxonomy, valid) == Right(valid))
+    assert(
+      Validation
+        .validateResult(input, taxonomy, result)
+        .left
+        .toOption
+        .exists(
+          _.isInstanceOf[TriageError.InvalidOutput]
+        )
+    )
+
+  test("evidence cannot replace a source newline with a space"):
+    val source = input.copy(body = "The launcher crashes\non startup.")
+    val exact = valid.copy(evidence =
+      valid.evidence.updated(
+        0,
+        Evidence("issueType", "body", "crashes\non startup")
+      )
+    )
+    val normalized = exact.copy(evidence =
+      exact.evidence.updated(
+        0,
+        Evidence("issueType", "body", "crashes on startup")
+      )
+    )
+    assert(Validation.validateResult(source, taxonomy, exact) == Right(exact))
+    assert(
+      Validation
+        .validateResult(source, taxonomy, normalized)
+        .left
+        .toOption
+        .exists(
+          _.isInstanceOf[TriageError.InvalidOutput]
+        )
+    )
+
+  test("evidence must occur in the declared field, not only in the other source field"):
+    Vector(
+      Evidence("issueType", "body", "launcher"),
+      Evidence("issueType", "title", "CLI crashes")
+    ).foreach { evidence =>
+      val exact = valid.copy(evidence = valid.evidence.updated(0, evidence))
+      val wrongField = if evidence.field == "body" then "title" else "body"
+      val misplaced = exact.copy(evidence = exact.evidence.updated(0, evidence.copy(field = wrongField)))
+      assert(Validation.validateResult(input, taxonomy, exact) == Right(exact))
+      assert(
+        Validation
+          .validateResult(input, taxonomy, misplaced)
+          .left
+          .toOption
+          .exists(
+            _.isInstanceOf[TriageError.InvalidOutput]
+          )
+      )
+    }
+
   test("review status, absent categories and explanation must be consistent"):
     Vector(
       valid.copy(component = None),
