@@ -153,6 +153,7 @@
       const open = node("button", "issue-open");
       open.dataset.issueId = id;
       open.type = "button";
+      open.setAttribute("aria-controls", "issue-detail");
       open.setAttribute("aria-pressed", String(state.activeId === id));
       open.append(node("span", "issue-title", issue.input.title));
       const meta = node("span", "issue-meta");
@@ -167,6 +168,7 @@
         document.querySelectorAll(".issue-open").forEach((entry) => entry.setAttribute("aria-pressed", "false"));
         row.classList.add("active");
         open.setAttribute("aria-pressed", "true");
+        $("issue-announcement").textContent = `Issue #${id}: ${issue.input.title} opened.`;
         renderDetail();
       });
       row.append(checkbox, open);
