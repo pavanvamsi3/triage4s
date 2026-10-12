@@ -153,6 +153,7 @@
       const open = node("button", "issue-open");
       open.dataset.issueId = id;
       open.type = "button";
+      open.setAttribute("aria-controls", "issue-detail");
       open.setAttribute("aria-pressed", String(state.activeId === id));
       open.append(node("span", "issue-title", issue.input.title));
       const meta = node("span", "issue-meta");
@@ -168,6 +169,9 @@
         row.classList.add("active");
         open.setAttribute("aria-pressed", "true");
         renderDetail();
+        const announcement = $("issue-navigation-status");
+        if (announcement) announcement.textContent = `Issue #${id}: ${issue.input.title} opened.`;
+        open.focus();
       });
       row.append(checkbox, open);
       fragment.append(row);
