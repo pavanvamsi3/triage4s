@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest an improvement or new capability for Triage4s.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Submitting a request does not commit you to implementing it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what is missing or difficult today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe how you would like Triage4s to behave.
+    validations:
+      required: true

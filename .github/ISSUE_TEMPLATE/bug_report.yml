@@ -1,0 +1,76 @@
+name: Bug report
+description: Report something in Triage4s that isn't working as expected.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+        **Do not share** API keys, tokens, sensitive issue text, or private recordings in this form.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: A short description of the problem.
+      placeholder: "e.g. Recorded replay fails to load after saving a snapshot"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact steps that lead to the problem.
+      placeholder: |
+        1. Run `sbt "demo/run"`
+        2. Select ...
+        3. Click ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where does the problem occur?
+      options:
+        - Live GitHub
+        - Saved snapshot
+        - Recorded replay
+        - Library usage
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and JDK version
+      description: Output of `java -version` is helpful.
+      placeholder: "e.g. Windows 11, JDK 21.0.4"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs (optional)
+      description: Remove any API keys, tokens, or sensitive text before pasting.
+      render: shell
+    validations:
+      required: false
