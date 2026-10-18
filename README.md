@@ -257,6 +257,22 @@ Triage4s is a project of the **[LLM4S Foundation](https://llm4s.org/foundation/)
 engineering by contributing to real open-source projects such as [LLM4S](https://github.com/llm4s/llm4s), the AI
 framework for Scala, and Triage4s, which is built on it.
 
+### Contribute and grow: global internship opportunities
+
+Contributing to Triage4s is a practical way into AI engineering, and through the
+[LLM4S Foundation](https://llm4s.org/foundation/) it can open doors to global internship opportunities:
+
+- **Build a public track record.** Every merged pull request is real, reviewed AI engineering work in Scala that you
+  can point to in applications and interviews.
+- **Learn from mentors.** Maintainers review your changes and help you grow, and you can meet them and experienced
+  Scala developers at the weekly Dev Hours.
+- **Get noticed for internships.** The foundation connects active contributors with global internship and career
+  pathways, and mentors programmes such as [Google Summer of Code](https://llm4s.org/gsoc/). Consistent, high-quality
+  contributions are the best way to be considered.
+- **Grow from first issue to bigger work.** Start with a
+  [good first issue](https://github.com/pavanvamsi3/triage4s/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22),
+  then take on enhancements here and in the main [LLM4S](https://github.com/llm4s/llm4s) repository.
+
 ### Meet the maintainers and community
 
 We meet every **Sunday at 9:00 AM London time** for Dev Hours.
