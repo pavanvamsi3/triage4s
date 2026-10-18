@@ -6,7 +6,7 @@ A small Scala library for evidence-backed AI triage, with a local dashboard for 
 The demo uses public issues from [pavanvamsi3/copilot-lens](https://github.com/pavanvamsi3/copilot-lens)
 and never writes to GitHub.
 
-Triage4s is part of the [LLM4S Foundation](https://github.com/llm4s) and is built on
+Triage4s is part of the [LLM4S Foundation](https://llm4s.org/foundation/) and is built on
 [LLM4S](https://github.com/llm4s/llm4s). See [Maintainers](#maintainers) and
 [Community](#community) to meet the team.
 
@@ -253,7 +253,7 @@ snapshot/replay integrity, and evaluation denominators.
 
 ## Community
 
-Triage4s is a project of the **LLM4S Foundation**, a global Scala and AI community that helps developers learn AI
+Triage4s is a project of the **[LLM4S Foundation](https://llm4s.org/foundation/)**, a global Scala and AI community that helps developers learn AI
 engineering by contributing to real open-source projects such as [LLM4S](https://github.com/llm4s/llm4s), the AI
 framework for Scala, and Triage4s, which is built on it.
 
