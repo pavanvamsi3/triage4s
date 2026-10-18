@@ -22,7 +22,7 @@ The repository's normal build uses Scala 3.7.1 and LLM4S 0.4.1. No provider conf
 
 ## Basic usage
 
-Configure and inject an LLM4S `LLMClient` at your application's edge. The client remains owned by the caller:
+Configure and inject an LLM4S `LLMClient` at your application's edge. The client remains owned by the caller (see the root README's [Using the library](../../README.md#using-the-library) for the full walkthrough):
 
 ```scala
 import org.llm4s.llmconnect.LLMClient
