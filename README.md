@@ -248,7 +248,8 @@ snapshot/replay integrity, and evaluation denominators.
 
 ## Maintainers
 
-- **Kannupriya Kalra** - [@kannupriyakalra](https://github.com/kannupriyakalra)
+- **Kannupriya Kalra** - [@kannupriyakalra](https://github.com/kannupriyakalra) ·
+  [LinkedIn](https://www.linkedin.com/in/kannupriyakalra/) · [kannupriya@llm4s.org](mailto:kannupriya@llm4s.org)
 - **Pavan Vamsi** - [@pavanvamsi3](https://github.com/pavanvamsi3)
 
 ## Community
