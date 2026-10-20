@@ -1,8 +1,20 @@
 ThisBuild / scalaVersion := "3.7.1"
-ThisBuild / organization := "io.github.triage4s"
-ThisBuild / version := "0.1.0-SNAPSHOT"
+// Maven Central coordinates (#96). Sonatype grants `io.github.<account>` to whoever controls that GitHub account, so the
+// namespace follows the repository's owner. The version comes from git tags (sbt-dynver, through sbt-ci-release):
+// v0.1.0 releases 0.1.0, and every other commit is a -SNAPSHOT of the next one. See RELEASING.md.
+ThisBuild / organization := "io.github.pavanvamsi3"
+ThisBuild / organizationName := "Triage4s contributors"
+ThisBuild / description := "Evidence-backed AI issue triage for Scala, powered by LLM4S"
 ThisBuild / licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT"))
 ThisBuild / homepage := Some(url("https://github.com/pavanvamsi3/triage4s"))
+ThisBuild / scmInfo := Some(
+  ScmInfo(url("https://github.com/pavanvamsi3/triage4s"), "scm:git:git@github.com:pavanvamsi3/triage4s.git")
+)
+ThisBuild / developers := List(
+  Developer("pavanvamsi3", "Pavan Vamsi", "", url("https://github.com/pavanvamsi3")),
+  Developer("kannupriyakalra", "Kannupriya Kalra", "", url("https://github.com/kannupriyakalra"))
+)
+ThisBuild / versionScheme := Some("early-semver")
 
 // One LLM4S version for every LLM4S module: since 0.5.0 the library is split into modules that are released together.
 // `-Dllm4s.version=...` builds against another one, such as the snapshot of LLM4S main the nightly workflow publishes.

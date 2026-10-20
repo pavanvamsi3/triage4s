@@ -123,17 +123,33 @@ recordings produce a visible error. Unit-test fixtures are synthetic and are not
 ## Using the library
 
 The reusable code lives in `modules/core`; the GitHub adapter and server live in `modules/demo`.
-This project has not been published to Maven Central. For local experimentation:
-
-```bash
-sbt "core/publishLocal"
-```
-
-Then add to another Scala 3 build:
+`triage4s-core` is published to Maven Central (from the first release; see [RELEASING.md](RELEASING.md)). Add it with
+the LLM4S provider module you use:
 
 ```scala
-libraryDependencies += "io.github.triage4s" %% "triage4s-core" % "0.1.0-SNAPSHOT"
+// sbt
+libraryDependencies ++= Seq(
+  "io.github.pavanvamsi3" %% "triage4s-core" % "<version>",
+  "org.llm4s"             %% "llm4s-openai"  % "0.5.1"
+)
 ```
+
+```xml
+<!-- Maven: Scala 3 artifacts carry the _3 suffix -->
+<dependency>
+  <groupId>io.github.pavanvamsi3</groupId>
+  <artifactId>triage4s-core_3</artifactId>
+  <version>VERSION</version>
+</dependency>
+```
+
+```kotlin
+// Gradle
+implementation("io.github.pavanvamsi3:triage4s-core_3:VERSION")
+```
+
+Until then, or to try unreleased changes, publish it locally with `sbt "core/publishLocal"` and use the version that
+prints.
 
 Inject an LLM4S client configured at your application edge:
 

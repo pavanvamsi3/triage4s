@@ -6,17 +6,14 @@ The [`demo` module](../demo) is a separate local dashboard and GitHub adapter. I
 
 ## Installation for local development
 
-The artifact is not published to Maven Central. From the repository root, publish it to your local Ivy/Maven cache:
-
-```bash
-sbt "core/publishLocal"
-```
-
-Then use the current Scala 3 coordinates in another local build:
+Published to Maven Central from the first release (see [RELEASING.md](../../RELEASING.md)):
 
 ```scala
-libraryDependencies += "io.github.triage4s" %% "triage4s-core" % "0.1.0-SNAPSHOT"
+libraryDependencies += "io.github.pavanvamsi3" %% "triage4s-core" % "<version>"
 ```
+
+To use unreleased changes, run `sbt "core/publishLocal"` from the repository root and use the `-SNAPSHOT` version it
+prints.
 
 The repository's normal build uses Scala 3.7.1 and LLM4S 0.5.1. This module depends on `llm4s-core` only: since LLM4S 0.5.0 provider clients live in their own modules, so your application adds the one it uses, for example `"org.llm4s" %% "llm4s-openai" % "0.5.1"` for `OpenAIClient`.
 
