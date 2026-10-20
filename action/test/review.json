@@ -1,0 +1,16 @@
+{
+  "id": "octo/repo#13",
+  "title": "Something is off",
+  "response": {
+    "result": {
+      "issueType": null,
+      "component": null,
+      "rationale": "The issue does not say what fails.",
+      "evidence": [],
+      "needsReview": true,
+      "reviewReasons": ["No failing behaviour is described.", "No component is named."]
+    },
+    "model": "claude-sonnet-4-5",
+    "usage": null
+  }
+}

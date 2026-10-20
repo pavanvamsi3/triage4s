@@ -223,6 +223,40 @@ see `modules/cli/src/main/resources/application.conf`), `--model` replaces its m
 from a JSON file. The exit code says what happened: **0** a suggestion was made, **2** it needs human review, **1** an
 error. Installing it as a `triage4s` command (Coursier `cs install`) follows once the artifacts are published (#96).
 
+## GitHub Action
+
+Triage new issues in your own repository with the Triage4s action. By default it only writes the suggestion, with the
+quotes that support it, to the workflow's job summary; `mode: comment` also posts it on the issue. It never applies
+labels.
+
+```yaml
+# .github/workflows/triage.yml
+name: Triage
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write   # only for mode: comment
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # only needed for a taxonomy file in your repository
+      - uses: pavanvamsi3/triage4s@main     # pin a release tag once there is one
+        with:
+          mode: comment                    # or dry-run (the default): job summary only
+          provider: openai                 # anthropic, gemini or ollama
+          taxonomy: .github/triage-taxonomy.json   # optional; the built-in taxonomy otherwise
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+Inputs: `issue-number` (the triggering issue by default), `repository`, `provider`, `model`, `taxonomy`, `mode`,
+`github-token`. Outputs: `issue-type`, `component` and `needs-review`, for later steps. An issue that needs human review
+is a successful run; only an error (no key, a provider failure, malformed output) fails the step. The issue's title and
+body are sent to the configured model provider, as in the dashboard.
+
 ## Limits and reliability
 
 - Up to **10 distinct selected issues**, one active run, one issue at a time.

@@ -1,0 +1,37 @@
+# Checks the Triage4s GitHub Action (#100) on pull requests that touch it.
+name: GitHub Action
+
+on:
+  pull_request:
+    paths: [action.yml, "action/**", "modules/cli/**", "modules/core/**", build.sbt, .github/workflows/action.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the summary rendering
+        run: |
+          shellcheck action/summary.sh action/test/summary-test.sh
+          action/test/summary-test.sh
+      # the whole action, as a workflow uses it, with no model key: it must build the CLI, fetch the issue and stop at
+      # the missing key with an error - not succeed, and not hang
+      - name: Run the action without a model key
+        id: run
+        continue-on-error: true
+        uses: ./
+        with:
+          issue-number: "1"
+          repository: pavanvamsi3/triage4s
+      - name: The action failed cleanly, at the missing key
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+          ERROR: ${{ steps.run.outputs.error }}
+        run: |
+          echo "outcome=$OUTCOME error=$ERROR"
+          test "$OUTCOME" = failure
+          grep -q "OPENAI_API_KEY" <<<"$ERROR"

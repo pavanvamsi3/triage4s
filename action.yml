@@ -1,0 +1,118 @@
+# Triage4s as a GitHub Action (#100): suggests a type and component for one issue, with the exact quotes that support
+# them. By default it only writes the suggestion to the job summary; with `mode: comment` it posts one comment. It never
+# applies labels: a suggestion is for a human to accept.
+name: Triage4s
+description: Evidence-backed AI triage of a GitHub issue - a suggested type and component, with quotes, for a human to accept
+author: Triage4s contributors
+branding:
+  icon: tag
+  color: green
+
+inputs:
+  issue-number:
+    description: The issue to triage; defaults to the issue of the triggering event.
+    default: ${{ github.event.issue.number }}
+  repository:
+    description: The repository the issue is in, as owner/name.
+    default: ${{ github.repository }}
+  provider:
+    description: The LLM4S provider section to use - openai, anthropic, gemini or ollama.
+    default: openai
+  model:
+    description: The model, replacing the provider section's default.
+    default: ""
+  taxonomy:
+    description: A taxonomy JSON file in the calling repository; the built-in taxonomy when empty.
+    default: ""
+  mode:
+    description: dry-run writes the suggestion to the job summary only; comment also posts it on the issue.
+    default: dry-run
+  github-token:
+    description: Reads the issue, and posts the comment in comment mode (which needs issues write permission).
+    default: ${{ github.token }}
+
+outputs:
+  issue-type:
+    description: The suggested type, or empty when the model abstained.
+    value: ${{ steps.triage.outputs.issue-type }}
+  component:
+    description: The suggested component, or empty when the model abstained.
+    value: ${{ steps.triage.outputs.component }}
+  needs-review:
+    description: true when the result needs human review.
+    value: ${{ steps.triage.outputs.needs-review }}
+  error:
+    description: Why the triage failed (the CLI's error message, on one line), empty on success.
+    value: ${{ steps.triage.outputs.error }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+    - uses: sbt/setup-sbt@v1
+    - name: Build the Triage4s CLI
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        sbt -batch -Dsbt.supershell=false cli/compile
+        # the classpath, so the CLI runs with plain java and sbt's log lines cannot mix into its JSON
+        # no supershell or colours, escape codes stripped, and the classpath picked by content rather than position
+        sbt -batch -error -Dsbt.supershell=false -Dsbt.color=false "export cli/Runtime/fullClasspath" \
+          | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '\r' | grep '/modules/cli/target/' | tail -n 1 \
+          > "$RUNNER_TEMP/triage4s-classpath" || true
+        classes="$(tr ':' '\n' < "$RUNNER_TEMP/triage4s-classpath" | grep -m1 '/modules/cli/target/.*/classes$' || true)"
+        if [ -z "$classes" ] || [ ! -f "$classes/triage4s/cli/Main.class" ]; then
+          echo "::error::Could not build the Triage4s CLI: its compiled classes are not on the exported classpath."
+          head -c 600 "$RUNNER_TEMP/triage4s-classpath"; echo
+          exit 1
+        fi
+        echo "Triage4s CLI classpath: $(tr ':' '\n' < "$RUNNER_TEMP/triage4s-classpath" | wc -l) entries"
+    - name: Triage the issue
+      id: triage
+      shell: bash
+      env:
+        ISSUE: ${{ inputs.issue-number }}
+        REPOSITORY: ${{ inputs.repository }}
+        PROVIDER: ${{ inputs.provider }}
+        MODEL: ${{ inputs.model }}
+        TAXONOMY: ${{ inputs.taxonomy }}
+        MODE: ${{ inputs.mode }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        case "$MODE" in dry-run|comment) ;; *) echo "::error::mode must be dry-run or comment, got '$MODE'"; exit 1 ;; esac
+        [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]] || { echo "::error::issue-number must be an issue number, got '$ISSUE'"; exit 1; }
+        args=(classify --repo "$REPOSITORY" --issue "$ISSUE" --provider "$PROVIDER" --json)
+        [ -n "$MODEL" ] && args+=(--model "$MODEL")
+        [ -n "$TAXONOMY" ] && args+=(--taxonomy "$GITHUB_WORKSPACE/$TAXONOMY")
+        set +e
+        (cd "$ACTION_PATH/modules/cli" && java -cp "$(cat "$RUNNER_TEMP/triage4s-classpath")" triage4s.cli.Main "${args[@]}") \
+          > "$RUNNER_TEMP/triage4s.json" 2> "$RUNNER_TEMP/triage4s.err"
+        code=$?
+        set -e
+        cat "$RUNNER_TEMP/triage4s.err" >&2
+        # 0 suggested and 2 needs review are results; anything else is an error
+        if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+          # the whole message on one line (a missing key's hint is on its second line), at most 500 characters
+          error="$(tr -s '\n\t ' ' ' < "$RUNNER_TEMP/triage4s.err" | cut -c1-500)"
+          [ -n "${error// /}" ] || error="the CLI exited with $code"
+          echo "error=$error" >> "$GITHUB_OUTPUT"
+          echo "::error::Triage4s: $error"
+          exit 1
+        fi
+        "$ACTION_PATH/action/summary.sh" "$RUNNER_TEMP/triage4s.json" > "$RUNNER_TEMP/triage4s.md"
+        cat "$RUNNER_TEMP/triage4s.md" >> "$GITHUB_STEP_SUMMARY"
+        {
+          echo "issue-type=$(jq -r '.response.result.issueType // ""' "$RUNNER_TEMP/triage4s.json")"
+          echo "component=$(jq -r '.response.result.component // ""' "$RUNNER_TEMP/triage4s.json")"
+          echo "needs-review=$(jq -r '.response.result.needsReview' "$RUNNER_TEMP/triage4s.json")"
+        } >> "$GITHUB_OUTPUT"
+        if [ "$MODE" = comment ]; then
+          gh issue comment "$ISSUE" --repo "$REPOSITORY" --body-file "$RUNNER_TEMP/triage4s.md"
+        fi

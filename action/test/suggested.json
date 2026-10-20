@@ -1,0 +1,19 @@
+{
+  "id": "octo/repo#12",
+  "title": "CLI crashes",
+  "response": {
+    "result": {
+      "issueType": "bug",
+      "component": "cli",
+      "rationale": "An existing CLI operation fails.",
+      "evidence": [
+        { "target": "issueType", "field": "title", "quote": "crashes" },
+        { "target": "component", "field": "title", "quote": "CLI" }
+      ],
+      "needsReview": false,
+      "reviewReasons": []
+    },
+    "model": "gpt-4o-mini",
+    "usage": null
+  }
+}
