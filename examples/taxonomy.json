@@ -1,0 +1,15 @@
+{
+  "version": "example-webshop-v1",
+  "types": [
+    { "id": "bug", "description": "Something that used to work, or should work, is broken: an error, wrong output or lost data." },
+    { "id": "feature", "description": "A new capability or a change to existing behaviour, with no evidence that anything is broken." },
+    { "id": "docs", "description": "A change to user-facing documentation, guides or examples only." },
+    { "id": "support", "description": "A question about how to use the shop, not a request to change it." }
+  ],
+  "components": [
+    { "id": "checkout", "description": "The cart, payment, discounts and order confirmation." },
+    { "id": "catalog", "description": "Product listings, search, filters and product pages." },
+    { "id": "accounts", "description": "Sign-up, sign-in, passwords, profiles and saved addresses." },
+    { "id": "admin", "description": "The back office: inventory, orders, refunds and reports." }
+  ]
+}

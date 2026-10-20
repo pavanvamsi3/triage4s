@@ -56,6 +56,7 @@ Optional settings:
 | `TRIAGE_PORT` | `8080` | Loopback HTTP port, 1024-65535 |
 | `TRIAGE_MODEL` | `gpt-4o-mini` | OpenAI model; must support the requested structured-output schema |
 | `GITHUB_TOKEN` | unset | Optional authentication for public GitHub GET requests |
+| `TRIAGE_TAXONOMY_FILE` | unset | A local JSON file with your own issue types and components (see below) |
 | `TRIAGE_BIND_ADDRESS` | `127.0.0.1` | Where the dashboard listens: loopback, or `0.0.0.0` inside a container |
 | `TRIAGE_PROVIDER` | unset | An LLM4S provider section to use instead of OpenAI: `openai`, `anthropic`, `gemini` or `ollama` (see below) |
 | `TRIAGE_REQUESTS_PER_MINUTE` | unset | A local limit on model calls (1-10000), for a tight provider quota |
@@ -98,6 +99,26 @@ Publish the port to the host's loopback only (`-p 127.0.0.1:...`) and on the sam
 accepts only requests addressed to `127.0.0.1:<port>` or `localhost:<port>`, which also guards against DNS rebinding.
 Pass keys with `-e`, never in the image. Snapshots and recordings are written under `/app/fixtures`; mount a volume there
 to keep them.
+
+### Your own taxonomy
+
+The dashboard classifies against a built-in taxonomy for copilot-lens. To use your own issue types and components, point
+`TRIAGE_TAXONOMY_FILE` at a JSON file; [`examples/taxonomy.json`](examples/taxonomy.json) is a complete example:
+
+```json
+{
+  "version": "example-webshop-v1",
+  "types": [{ "id": "bug", "description": "Something that should work is broken." }],
+  "components": [{ "id": "checkout", "description": "The cart, payment and order confirmation." }]
+}
+```
+
+The file is read once at startup, must be at most 64 KiB, and is checked with the same rules as every taxonomy: a
+non-blank `version`; 1 to 30 categories per group; lowercase IDs (`[a-z][a-z0-9-]*`, up to 50 characters) without
+duplicates; descriptions of 1 to 500 characters. Descriptions are what the model reads, so make them specific. An
+invalid or missing file stops the server with a message naming it; there is no fallback to the built-in taxonomy. The
+same taxonomy is used for classification, shown in the dashboard, and stored in recordings; a recording made with
+another taxonomy is refused rather than remapped, and the `Evaluation` command reads `TRIAGE_TAXONOMY_FILE` too.
 
 ## Demo walkthrough
 

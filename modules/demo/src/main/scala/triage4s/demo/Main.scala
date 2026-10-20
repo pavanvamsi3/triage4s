@@ -24,7 +24,7 @@ object Main extends cask.MainRoutes:
     github.load,
     new SnapshotStore(Path.of(".")),
     () => provider.map(p => new Triage(p.client)),
-    Taxonomy.copilotLens,
+    config.taxonomy,
     attempts = attempts
   )
   Runtime.getRuntime.addShutdownHook(new Thread(() => {

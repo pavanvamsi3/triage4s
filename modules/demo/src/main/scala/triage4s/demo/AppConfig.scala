@@ -24,7 +24,9 @@ final class AppConfig(
     /** Where the dashboard listens (`TRIAGE_BIND_ADDRESS`): loopback, or all interfaces inside a container
       * (#101).
       */
-    val bindAddress: String = AppConfig.Loopback
+    val bindAddress: String = AppConfig.Loopback,
+    /** The classification taxonomy: `TRIAGE_TAXONOMY_FILE`, or the built-in one (#13). */
+    val taxonomy: triage4s.Taxonomy = triage4s.Taxonomy.copilotLens
 ):
   override def toString: String =
     s"AppConfig(port=$port, model=$model, provider=${providerSection.getOrElse("openai")}, credentials=[redacted])"
@@ -75,6 +77,7 @@ object AppConfig:
         (),
         "TRIAGE_BIND_ADDRESS must be 127.0.0.1, or 0.0.0.0 inside a container."
       )
+      taxonomy <- TaxonomyFile.fromEnvironment(environment)
     yield new AppConfig(
       parsed,
       model,
@@ -83,7 +86,8 @@ object AppConfig:
       section,
       optional("TRIAGE_MODEL"),
       rpm,
-      bind
+      bind,
+      taxonomy
     )
 
   /** The LLM4S provider configuration for `config`'s model and `key`: the OpenAI endpoint, with

@@ -160,7 +160,9 @@ object Evaluation:
         require(Files.size(path) <= 1024 * 1024)
         read[Vector[Expected]](Files.readString(path))
       }.toEither.left.map(_ => "Cannot read annotation file: expected a JSON array no larger than 1 MiB.")
-      replay <- new SnapshotStore(Path.of(".")).loadReplay(Taxonomy.copilotLens)
+      // the taxonomy the recording was made with: TRIAGE_TAXONOMY_FILE, or the built-in one (#13)
+      taxonomy <- TaxonomyFile.fromEnvironment(sys.env)
+      replay <- new SnapshotStore(Path.of(".")).loadReplay(taxonomy)
       report <- score(replay, annotations, args(1))
     yield report
     outcome match
