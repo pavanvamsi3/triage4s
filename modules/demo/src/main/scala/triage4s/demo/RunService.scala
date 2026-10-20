@@ -44,6 +44,8 @@ final class RunService(
   private var loaded = Vector.empty[Issue]
   private var replay: Option[Replay] = None
   private var current: Option[Run] = None
+  // the id of the run asked to stop after its current issue (#14)
+  private var stopRequested: Option[String] = None
   private var closed = false
 
   def currentRun: ujson.Value = synchronized {
@@ -151,22 +153,65 @@ final class RunService(
         }
   }
 
+  /** Asks the run `id` to stop after its current issue (#14): the issue being classified finishes, and the
+    * issues still queued are skipped, never sent. Idempotent; it answers the run as it stands. Only the
+    * active run can be stopped: an older run's id is refused, so a stale page cannot stop a newer run. The
+    * run stays `running` until its in-flight call returns, so no new run can start before then, and it ends
+    * `stopped`, which cannot be recorded.
+    */
+  def stop(id: String): Either[String, ujson.Value] = synchronized {
+    current match
+      case Some(run) if run.id == id =>
+        if run.status == "running" then
+          stopRequested = Some(id)
+          current =
+            Some(run.copy(notice = "Stopping after the current issue. Queued issues will be skipped."))
+        current.map(_.json).toRight("No run.")
+      case Some(_) => Left("That run is no longer the active run.")
+      case None    => Left("There is no run to stop.")
+  }
+
+  private def stopping(id: String): Boolean = synchronized(stopRequested.contains(id))
+
   private def process(id: String, issues: Vector[Issue], activeClassifier: Classifier): Unit =
-    issues.zipWithIndex.foreach { case (issue, index) =>
-      update(id, index, RunItem(issue, "running"))
-      val before = attempts()
-      val result = Try(activeClassifier.triage(issue.input, taxonomy)).toEither.left
-        .map(e => TriageError.ProviderFailure(s"Classifier failed (${e.getClass.getSimpleName})."))
-        .flatMap(identity)
-      val took = Some(attempts() - before).filter(_ > 1)
-      val item = result match
-        case Right(response) => RunItem(issue, statusFor(response), Some(response), attempts = took)
-        case Left(error)     => RunItem(issue, "error", error = Some(error.message), attempts = took)
-      update(id, index, item)
+    val stoppedAt = issues.indices.find { index =>
+      if stopping(id) then true
+      else
+        classifyOne(id, issues(index), index, activeClassifier)
+        false
     }
     synchronized {
-      current = current.map(r => if r.id == id then r.copy(status = "completed") else r)
+      current = current.map { r =>
+        if r.id != id then r
+        else
+          stoppedAt match
+            case Some(from) =>
+              r.copy(
+                status = "stopped",
+                items = r.items.zipWithIndex.map((item, i) =>
+                  if i >= from then
+                    item.copy(status = "skipped", error = Some("Skipped: the run was stopped."))
+                  else item
+                ),
+                notice =
+                  s"Stopped by request after ${from} of ${r.items.size} issues; the rest were not sent."
+              )
+            case None => r.copy(status = "completed")
+      }
+      stopRequested = None
     }
+
+  private def classifyOne(id: String, issue: Issue, index: Int, activeClassifier: Classifier): Unit =
+    update(id, index, RunItem(issue, "running"))
+    val before = attempts()
+    val result = Try(activeClassifier.triage(issue.input, taxonomy)).toEither.left
+      .map(e => TriageError.ProviderFailure(s"Classifier failed (${e.getClass.getSimpleName})."))
+      .flatMap(identity)
+    val took = Some(attempts() - before).filter(_ > 1)
+    val item = result match
+      case Right(response) => RunItem(issue, statusFor(response), Some(response), attempts = took)
+      case Left(error)     => RunItem(issue, "error", error = Some(error.message), attempts = took)
+    update(id, index, item)
 
   private def statusFor(response: TriageResponse): String =
     if response.result.needsReview then "needs-review" else "suggested"
@@ -177,7 +222,11 @@ final class RunService(
 
   def record(): Either[String, String] = synchronized {
     current.toRight("Complete a live or snapshot triage run before recording.").flatMap { run =>
-      if run.mode == "replay" || run.status != "completed" then
+      if run.status == "stopped" then
+        Left(
+          "A stopped run cannot be recorded: some issues were skipped. Run the remaining issues explicitly."
+        )
+      else if run.mode == "replay" || run.status != "completed" then
         Left("Only completed live or snapshot runs can be recorded.")
       else if run.items.exists(_.response.isEmpty) then
         Left("Every selected issue must have a successful result before recording. Retry errors explicitly.")

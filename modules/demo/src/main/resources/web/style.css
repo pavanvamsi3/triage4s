@@ -95,6 +95,7 @@ select { border: 1px solid #cbd8dd; background: white; border-radius: 6px; paddi
 .badge.needs-review { color: var(--amber); background: #fff0d8; }
 .badge.error { color: var(--red); background: #fce9ec; }
 .badge.running { color: #196794; background: #e5f2fc; }
+.badge.skipped { color: #5d6d76; background: #eef0f2; text-decoration: line-through; }
 .badge.replay { color: #67468c; background: #f0eafa; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 320px; padding: 36px 26px; text-align: center; }
 .empty-icon { width: 46px; height: 46px; line-height: 42px; border: 1px solid var(--line); border-radius: 12px; font-size: 29px; font-weight: 300; color: #68828b; background: #f8fbfb; margin-bottom: 17px; }

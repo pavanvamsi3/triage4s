@@ -23,7 +23,7 @@
   };
   const statusLabels = {
     queued: "Queued", running: "In progress", suggested: "Suggested",
-    "needs-review": "Needs review", error: "Error",
+    "needs-review": "Needs review", error: "Error", skipped: "Skipped",
   };
   // uPickle encodes Scala Option[A] as [] or [A], not null or A.
   const option = (value) => Array.isArray(value) ? (value.length ? value[0] : null) : (value ?? null);
@@ -314,9 +314,12 @@
     const run = state.run;
     $("progress-region").hidden = !run || run.status === "idle";
     if (!run || run.status === "idle") return;
-    const finished = run.items.filter((item) => ["suggested", "needs-review", "error"].includes(item.status)).length;
+    const finished = run.items.filter((item) => ["suggested", "needs-review", "error", "skipped"].includes(item.status)).length;
     const errors = run.items.filter((item) => item.status === "error").length;
-    $("run-status").textContent = `${run.mode === "replay" ? "Recorded replay" : "Triage"} ${run.status === "running" ? "in progress" : "complete"}${errors ? ` · ${errors} error${errors === 1 ? "" : "s"}` : ""}`;
+    const skipped = run.items.filter((item) => item.status === "skipped").length;
+    const phase = run.status === "running" ? "in progress" : run.status === "stopped" ? "stopped" : "complete";
+    $("run-status").textContent = `${run.mode === "replay" ? "Recorded replay" : "Triage"} ${phase}${errors ? ` · ${errors} error${errors === 1 ? "" : "s"}` : ""}${skipped ? ` · ${skipped} skipped` : ""}`;
+    $("stop-run").hidden = run.status !== "running" || run.mode === "replay";
     $("progress-text").textContent = `${finished} / ${run.items.length} processed`;
     $("run-progress").max = Math.max(1, run.items.length);
     $("run-progress").value = finished;
@@ -455,6 +458,18 @@
   $("consent").addEventListener("change", updateControls);
   $("dismiss-error").addEventListener("click", () => { $("error-banner").hidden = true; });
   $("resume-polling").addEventListener("click", pollRun);
+  // stops the active run after its current issue (#14); the run id keeps a stale page from stopping a newer run
+  $("stop-run").addEventListener("click", async () => {
+    if (!running()) return;
+    $("stop-run").disabled = true;
+    try {
+      acceptRun(await api("/api/run/stop", { runId: state.run.id }));
+    } catch (error) {
+      showError(error);
+    } finally {
+      $("stop-run").disabled = false;
+    }
+  });
   $("select-all").addEventListener("change", (event) => {
     state.selected.clear();
     if (event.target.checked) state.issues.slice(0, limit()).forEach((issue) => state.selected.add(issueId(issue)));

@@ -170,6 +170,17 @@ object Main extends cask.MainRoutes:
     selection.flatMap { case (ids, consent) => service.start(ids, consent) }.fold(error(_), json(_))
   }
 
+  /** Stops the active run after its current issue (#14); the body names the run: `{"runId": "..."}`. */
+  @cask.post("/api/run/stop")
+  def stopRun(request: cask.Request): cask.Response[String] = post(request) { body =>
+    Try {
+      require(body.obj.keySet.toSet == Set("runId"))
+      body("runId").str
+    }.toOption.filter(_.matches("[0-9a-f-]{36}")) match
+      case None        => error("Send {\"runId\": \"<the active run's id>\"}.")
+      case Some(runId) => service.stop(runId).fold(error(_, 409), json(_))
+  }
+
   @cask.post("/api/snapshot")
   def snapshot(request: cask.Request): cask.Response[String] = post(request) { _ =>
     service.saveSnapshot().fold(error(_), message => json(ujson.Obj("message" -> message)))

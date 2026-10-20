@@ -107,6 +107,8 @@ to keep them.
    and consent to sending it to OpenAI. Only then run triage.
 4. Watch per-issue progress and inspect the type, component, evidence, or review reasons.
 5. Failed issues do not stop later ones. Retry explicitly after the run finishes.
+6. **Stop after current issue** ends a run early: the issue being classified finishes, the queued ones are skipped and
+   never sent, and the run shows as stopped. A stopped run cannot be recorded for replay; run the rest explicitly.
 6. Save an input snapshot for repeatable loading. After a fully successful run, record results.
 7. Switch to **Recorded replay** and load the recording for a network-free presentation.
 
