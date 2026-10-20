@@ -221,7 +221,10 @@
     const topline = node("div", "detail-topline");
     topline.append(node("span", "", `ISSUE #${issueId(issue)}`), node("span", "badge", issue.state));
     if (state.mode === "replay") topline.append(node("span", "badge replay", "Recorded replay"));
-    if (typeof issue.url === "string" && /^https:\/\/github\.com\/pavanvamsi3\/copilot-lens\/issues\/[0-9]+$/.test(issue.url)) {
+    const repository = state.config?.repository || "";
+    if (typeof issue.url === "string" && repository &&
+        issue.url.startsWith(`https://github.com/${repository}/issues/`) &&
+        /^[0-9]+$/.test(issue.url.slice(`https://github.com/${repository}/issues/`.length))) {
       const link = node("a", "", "View on GitHub ↗");
       link.href = issue.url;
       link.target = "_blank";

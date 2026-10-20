@@ -160,7 +160,9 @@ object Evaluation:
         require(Files.size(path) <= 1024 * 1024)
         read[Vector[Expected]](Files.readString(path))
       }.toEither.left.map(_ => "Cannot read annotation file: expected a JSON array no larger than 1 MiB.")
-      replay <- new SnapshotStore(Path.of(".")).loadReplay(Taxonomy.copilotLens)
+      // recordings of the repository TRIAGE_REPOSITORY names, as the dashboard saved them (#12)
+      repository <- AppConfig.repositoryOf(sys.env)
+      replay <- new SnapshotStore(Path.of("."), repository).loadReplay(Taxonomy.copilotLens)
       report <- score(replay, annotations, args(1))
     yield report
     outcome match

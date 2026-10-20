@@ -24,7 +24,9 @@ final class AppConfig(
     /** Where the dashboard listens (`TRIAGE_BIND_ADDRESS`): loopback, or all interfaces inside a container
       * (#101).
       */
-    val bindAddress: String = AppConfig.Loopback
+    val bindAddress: String = AppConfig.Loopback,
+    /** The public GitHub repository whose issues the dashboard reads (`TRIAGE_REPOSITORY`, #12). */
+    val repository: String = GitHubSource.Repository
 ):
   override def toString: String =
     s"AppConfig(port=$port, model=$model, provider=${providerSection.getOrElse("openai")}, credentials=[redacted])"
@@ -75,6 +77,7 @@ object AppConfig:
         (),
         "TRIAGE_BIND_ADDRESS must be 127.0.0.1, or 0.0.0.0 inside a container."
       )
+      repository <- repositoryOf(environment)
     yield new AppConfig(
       parsed,
       model,
@@ -83,8 +86,20 @@ object AppConfig:
       section,
       optional("TRIAGE_MODEL"),
       rpm,
-      bind
+      bind,
+      repository
     )
+
+  /** `TRIAGE_REPOSITORY` as `owner/name`, or the default repository when it is unset (#12). */
+  def repositoryOf(environment: Map[String, String]): Either[String, String] =
+    environment.get("TRIAGE_REPOSITORY").map(_.trim).filter(_.nonEmpty) match
+      case None        => Right(GitHubSource.Repository)
+      case Some(value) =>
+        Either.cond(
+          GitHubSource.validRepository(value),
+          value,
+          "TRIAGE_REPOSITORY must be a public repository as owner/name, e.g. pavanvamsi3/copilot-lens - not a URL or path."
+        )
 
   /** The LLM4S provider configuration for `config`'s model and `key`: the OpenAI endpoint, with
     * [[RequestTimeout]].

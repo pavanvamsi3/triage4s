@@ -56,6 +56,7 @@ Optional settings:
 | `TRIAGE_PORT` | `8080` | Loopback HTTP port, 1024-65535 |
 | `TRIAGE_MODEL` | `gpt-4o-mini` | OpenAI model; must support the requested structured-output schema |
 | `GITHUB_TOKEN` | unset | Optional authentication for public GitHub GET requests |
+| `TRIAGE_REPOSITORY` | `pavanvamsi3/copilot-lens` | The public repository whose issues the dashboard reads, as `owner/name` |
 | `TRIAGE_BIND_ADDRESS` | `127.0.0.1` | Where the dashboard listens: loopback, or `0.0.0.0` inside a container |
 | `TRIAGE_PROVIDER` | unset | An LLM4S provider section to use instead of OpenAI: `openai`, `anthropic`, `gemini` or `ollama` (see below) |
 | `TRIAGE_REQUESTS_PER_MINUTE` | unset | A local limit on model calls (1-10000), for a tight provider quota |
@@ -98,6 +99,21 @@ Publish the port to the host's loopback only (`-p 127.0.0.1:...`) and on the sam
 accepts only requests addressed to `127.0.0.1:<port>` or `localhost:<port>`, which also guards against DNS rebinding.
 Pass keys with `-e`, never in the image. Snapshots and recordings are written under `/app/fixtures`; mount a volume there
 to keep them.
+
+### Your own repository
+
+The dashboard reads public issues from `pavanvamsi3/copilot-lens` by default. To triage another public repository's
+issues, start it with `TRIAGE_REPOSITORY`:
+
+```bash
+export TRIAGE_REPOSITORY=scala/scala3
+sbt "demo/run"
+```
+
+The value must be `owner/name`; a URL, a path or a query string is refused at startup, before any request. The
+repository is fixed for the life of the server. Issue links, saved snapshots and recordings are checked against it: a
+snapshot or recording of another repository is refused rather than reused, so switching repositories never mixes their
+data (snapshots of the default repository keep working). The `Evaluation` command reads `TRIAGE_REPOSITORY` too.
 
 ## Demo walkthrough
 

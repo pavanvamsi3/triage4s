@@ -19,10 +19,10 @@ object Main extends cask.MainRoutes:
       case Right((p, counter)) => (Right(p), () => counter.attempts)
       case Left(error)         => (Left(error), () => 0L)
   provider.left.foreach(logger.warn(_))
-  private val github = new GitHubSource(config.githubToken)
+  private val github = new GitHubSource(config.githubToken, repository = config.repository)
   private val service = new RunService(
     github.load,
-    new SnapshotStore(Path.of(".")),
+    new SnapshotStore(Path.of("."), config.repository),
     () => provider.map(p => new Triage(p.client)),
     Taxonomy.copilotLens,
     attempts = attempts
@@ -136,7 +136,7 @@ object Main extends cask.MainRoutes:
   def settings(request: cask.Request): cask.Response[String] = guarded(request) {
     json(
       ujson.Obj(
-        "repository" -> "pavanvamsi3/copilot-lens",
+        "repository" -> config.repository,
         "model" -> provider.fold(_ => config.model, _.model),
         "provider" -> provider.fold(_ => config.providerSection.getOrElse("openai"), _.provider),
         "configured" -> provider.isRight,

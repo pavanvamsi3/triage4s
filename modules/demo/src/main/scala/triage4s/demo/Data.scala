@@ -43,7 +43,18 @@ final case class Replay(
 ) derives ReadWriter
 
 object GitHubSource:
+  /** The repository the demo reads when `TRIAGE_REPOSITORY` is unset. */
   val Repository = "pavanvamsi3/copilot-lens"
+
+  /** Whether `value` is a public repository identity, `owner/name`: an owner of 1 to 39 letters, digits and
+    * hyphens (not leading), and a name of 1 to 100 letters, digits, `.`, `_` and `-`, other than `.` and
+    * `..`. A full URL, a path, a query string or anything else is refused, so nothing user-supplied reaches
+    * the request URL unchecked.
+    */
+  def validRepository(value: String): Boolean =
+    value.matches("[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}") && !Set(".", "..").contains(
+      value.split('/')(1)
+    )
   val MaxResponseBytes = 4 * 1024 * 1024
   val Timeout: Duration = Duration.ofSeconds(20)
   final case class Response(status: Int, headers: Map[String, String], body: Array[Byte])
@@ -99,8 +110,13 @@ object GitHubSource:
       "GitHub request timed out."
     else "GitHub request failed (network or transport error)."
 
-class GitHubSource(token: Option[String], fetch: GitHubSource.Fetch = GitHubSource.fetch):
+class GitHubSource(
+    token: Option[String],
+    fetch: GitHubSource.Fetch = GitHubSource.fetch,
+    repository: String = GitHubSource.Repository
+):
   import GitHubSource.*
+  require(validRepository(repository), "Invalid repository")
 
   def load(state: String, pages: Int): Either[String, Vector[Issue]] =
     if !Set("open", "closed").contains(state) then Left("GitHub state must be open or closed.")
@@ -111,7 +127,7 @@ class GitHubSource(token: Option[String], fetch: GitHubSource.Fetch = GitHubSour
           val builder = HttpRequest
             .newBuilder(
               URI.create(
-                s"https://api.github.com/repos/$Repository/issues?state=$state&per_page=30&page=$number"
+                s"https://api.github.com/repos/$repository/issues?state=$state&per_page=30&page=$number"
               )
             )
             .timeout(Timeout)
@@ -168,19 +184,19 @@ class GitHubSource(token: Option[String], fetch: GitHubSource.Fetch = GitHubSour
               .flatMap { issues =>
                 if issues.exists(_.state != state) then
                   Left("GitHub returned an issue with an unexpected state.")
-                else DataValidation.issues(issues).map(_ => issues)
+                else DataValidation.issues(issues, repository).map(_ => issues)
               }
         }
       (1 to pages)
         .foldLeft[Either[String, Vector[Issue]]](Right(Vector.empty)) { (loaded, number) =>
           loaded.flatMap(previous => page(number).map(previous ++ _))
         }
-        .flatMap(issues => DataValidation.issues(issues).map(_ => issues))
+        .flatMap(issues => DataValidation.issues(issues, repository).map(_ => issues))
 
 private object DataValidation:
   def timestamp(value: String): Boolean = value.length <= 64 && Try(Instant.parse(value)).isSuccess
 
-  def issues(values: Vector[Issue]): Either[String, Unit] =
+  def issues(values: Vector[Issue], repository: String): Either[String, Unit] =
     if values.size > 90 then Left("Issue data exceeds the 90-issue limit.")
     else if values.map(_.input.id).distinct.size != values.size then
       Left("Issue data contains duplicate IDs.")
@@ -190,8 +206,8 @@ private object DataValidation:
           val id = issue.input.id
           if !id.matches("[1-9][0-9]{0,9}") || Try(id.toInt).toOption.forall(_ <= 0) then
             Left("Issue source ID must be a positive GitHub issue number.")
-          else if issue.url != s"https://github.com/${GitHubSource.Repository}/issues/$id" then
-            Left("Issue source URL does not match the fixed repository and ID.")
+          else if issue.url != s"https://github.com/$repository/issues/$id" then
+            Left(s"Issue source URL does not match the configured repository ($repository) and ID.")
           else if !Set("open", "closed").contains(issue.state) || !timestamp(issue.retrievedAt) ||
             issue.input.title.trim.isEmpty || issue.labels.size > 100 ||
             issue.labels.distinct.size != issue.labels.size ||
@@ -206,7 +222,7 @@ private object DataValidation:
         }
       }
 
-  def replay(value: Replay, taxonomy: Taxonomy): Either[String, Unit] =
+  def replay(value: Replay, taxonomy: Taxonomy, repository: String): Either[String, Unit] =
     if value.schemaVersion != 1 then Left("Replay schema version is unsupported.")
     else if value.taxonomy != taxonomy then Left("Replay taxonomy does not match the configured taxonomy.")
     else if value.promptVersion != Triage.PromptVersion then Left("Replay prompt version is unsupported.")
@@ -216,7 +232,7 @@ private object DataValidation:
     else
       for
         _ <- Validation.validateTaxonomy(taxonomy).left.map(_ => "Replay taxonomy is invalid.")
-        _ <- issues(value.items.map(_.issue))
+        _ <- issues(value.items.map(_.issue), repository)
         _ <- value.items.foldLeft[Either[String, Unit]](Right(())) { (previous, item) =>
           previous.flatMap { _ =>
             val response = item.response
@@ -243,7 +259,10 @@ private final case class IssueSnapshot(
     issues: Vector[Issue]
 ) derives ReadWriter
 
-class SnapshotStore(root: Path):
+/** Saved snapshots and recordings of `repository`'s issues; another repository's are refused, never reused
+  * (#12).
+  */
+class SnapshotStore(root: Path, repository: String = GitHubSource.Repository):
   private val base = root.toAbsolutePath.normalize()
   private val maxBytes = 8 * 1024 * 1024
   private val privateDirectory = PosixFilePermissions.fromString("rwx------")
@@ -251,29 +270,30 @@ class SnapshotStore(root: Path):
 
   def saveIssues(issues: Vector[Issue]): Either[String, Unit] =
     DataValidation
-      .issues(issues)
-      .flatMap(_ => save("issues", write(IssueSnapshot(1, GitHubSource.Repository, issues))))
+      .issues(issues, repository)
+      .flatMap(_ => save("issues", write(IssueSnapshot(1, repository, issues))))
 
   def loadIssues(): Either[String, Vector[Issue]] =
     load("issues").flatMap { text =>
       Try {
         val snapshot = read[IssueSnapshot](text)
-        if snapshot.schemaVersion != 1 || snapshot.repository != GitHubSource.Repository then
-          Left("Saved issue snapshot schema or repository is unsupported.")
-        else DataValidation.issues(snapshot.issues).map(_ => snapshot.issues)
+        if snapshot.schemaVersion != 1 then Left("Saved issue snapshot schema is unsupported.")
+        else if snapshot.repository != repository then
+          Left(s"Saved issue snapshot is of ${snapshot.repository}, not the configured $repository.")
+        else DataValidation.issues(snapshot.issues, repository).map(_ => snapshot.issues)
       }.toEither.left
         .map(_ => "Saved issue snapshot is invalid JSON or schema.")
         .flatten
     }
 
   def saveReplay(replay: Replay): Either[String, Unit] =
-    DataValidation.replay(replay, replay.taxonomy).flatMap(_ => save("replay", write(replay)))
+    DataValidation.replay(replay, replay.taxonomy, repository).flatMap(_ => save("replay", write(replay)))
 
   def loadReplay(taxonomy: Taxonomy): Either[String, Replay] =
     load("replay").flatMap { text =>
       Try {
         val replay = read[Replay](text)
-        DataValidation.replay(replay, taxonomy).map(_ => replay)
+        DataValidation.replay(replay, taxonomy, repository).map(_ => replay)
       }.toEither.left
         .map(_ => "Saved replay is invalid JSON or schema.")
         .flatten
