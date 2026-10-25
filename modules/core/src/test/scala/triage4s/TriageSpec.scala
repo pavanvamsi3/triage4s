@@ -29,6 +29,17 @@ class TriageSpec extends AnyFunSuite:
     false,
     Vector.empty
   )
+
+  private def withIssueTypeQuote(quote: String): TriageResult =
+    valid.copy(evidence = valid.evidence.updated(0, Evidence("issueType", "body", quote)))
+
+  private def isInvalidOutput(source: TriageInput, result: TriageResult): Boolean =
+    Validation
+      .validateResult(source, taxonomy, result)
+      .left
+      .toOption
+      .exists(_.isInstanceOf[TriageError.InvalidOutput])
+
   private def json(result: TriageResult): String =
     val value = upickle.default.writeJs(result)
     value("issueType") = result.issueType.fold[ujson.Value](ujson.Null)(ujson.Str(_))
@@ -181,6 +192,18 @@ class TriageSpec extends AnyFunSuite:
           _.isInstanceOf[TriageError.InvalidOutput]
         )
     )
+
+  test("evidence quotes accept exactly 2000 characters and reject 2001"):
+    val source = input.copy(body = "x" * 2001)
+    val atLimit = withIssueTypeQuote("x" * 2000)
+    assert(Validation.validateResult(source, taxonomy, atLimit) == Right(atLimit))
+    assert(isInvalidOutput(source, withIssueTypeQuote("x" * 2001)))
+
+  test("whitespace-only evidence quotes are rejected even when the source contains them"):
+    val source = input.copy(body = "The launcher   crashes\n\non startup.")
+    assert(source.body.contains("   ") && source.body.contains("\n\n"))
+    assert(isInvalidOutput(source, withIssueTypeQuote("   ")))
+    assert(isInvalidOutput(source, withIssueTypeQuote("\n\n")))
 
   test("evidence cannot replace a source newline with a space"):
     val source = input.copy(body = "The launcher crashes\non startup.")
