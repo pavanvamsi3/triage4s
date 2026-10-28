@@ -40,6 +40,14 @@ class RunServiceSpec extends AnyFunSuite:
       try files.iterator().asScala.toVector.sortBy(_.getNameCount).reverse.foreach(Files.delete)
       finally files.close()
 
+  private def withStoreAt(test: (SnapshotStore, java.nio.file.Path) => Unit): Unit =
+    val root = Files.createTempDirectory("triage4s-run-test-")
+    try test(new SnapshotStore(root), root)
+    finally
+      val files = Files.walk(root)
+      try files.iterator().asScala.toVector.sortBy(_.getNameCount).reverse.foreach(Files.delete)
+      finally files.close()
+
   private def awaitCompleted(service: RunService): Unit =
     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
     while service.currentRun("status").str == "running" && System.nanoTime() < deadline do Thread.sleep(10)
@@ -212,5 +220,78 @@ class RunServiceSpec extends AnyFunSuite:
         val items = service.currentRun("items").arr
         assert(items(0)("attempts").num == 3)
         assert(!items(1).obj.contains("attempts"))
+      finally service.close()
+    }
+
+  test("record refuses before any run and writes no replay (#41)"):
+    withStoreAt { (store, root) =>
+      val service =
+        new RunService((_, _) => fail("no GitHub call"), store, () => fail("no model call"), taxonomy)
+      try
+        assert(service.record() == Left("Complete a live or snapshot triage run before recording."))
+        assert(!Files.exists(root.resolve("fixtures/replay/latest.json")))
+      finally service.close()
+    }
+
+  test("record refuses while a live run is still running and writes no replay (#41)"):
+    withStoreAt { (store, root) =>
+      val started = new CountDownLatch(1)
+      val release = new CountDownLatch(1)
+      val classifier = new Classifier:
+        override def triage(input: TriageInput, tax: Taxonomy) =
+          started.countDown()
+          if !release.await(5, TimeUnit.SECONDS) then Left(TriageError.ProviderFailure("test timeout"))
+          else Right(response)
+      val service =
+        new RunService((_, _) => Right(Vector(issue(1))), store, () => Right(classifier), taxonomy)
+      try
+        assert(service.load("live", "open", 1).isRight)
+        assert(service.start(Vector("1"), true).isRight)
+        assert(started.await(5, TimeUnit.SECONDS))
+        assert(service.record() == Left("Only completed live or snapshot runs can be recorded."))
+        assert(!Files.exists(root.resolve("fixtures/replay/latest.json")))
+      finally
+        release.countDown()
+        service.close()
+    }
+
+  test("record refuses a replay run (#41)"):
+    withStoreAt { (store, _) =>
+      val replay = Replay(
+        1,
+        Instant.now().toString,
+        taxonomy,
+        Triage.PromptVersion,
+        Vector(RecordedIssue(issue(1), response))
+      )
+      assert(store.saveReplay(replay).isRight)
+      val service =
+        new RunService((_, _) => fail("no GitHub call"), store, () => fail("no model call"), taxonomy)
+      try
+        assert(service.load("replay", "open", 1).isRight)
+        assert(service.start(Vector("1"), false).isRight)
+        assert(service.record() == Left("Only completed live or snapshot runs can be recorded."))
+      finally service.close()
+    }
+
+  test("record refuses a completed run with an error item and writes no replay (#41)"):
+    withStoreAt { (store, root) =>
+      val classifier = new Classifier:
+        override def triage(input: TriageInput, tax: Taxonomy) =
+          if input.id == "1" then Left(TriageError.ProviderFailure("provider unavailable"))
+          else Right(response)
+      val service =
+        new RunService((_, _) => Right(Vector(issue(1), issue(2))), store, () => Right(classifier), taxonomy)
+      try
+        assert(service.load("live", "open", 1).isRight)
+        assert(service.start(Vector("1", "2"), true).isRight)
+        awaitCompleted(service)
+        assert(
+          service.record() ==
+            Left(
+              "Every selected issue must have a successful result before recording. Retry errors explicitly."
+            )
+        )
+        assert(!Files.exists(root.resolve("fixtures/replay/latest.json")))
       finally service.close()
     }
