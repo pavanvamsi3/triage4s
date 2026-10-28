@@ -353,3 +353,17 @@ class TriageSpec extends AnyFunSuite:
     assert(ujson.read(conversation.messages(1).content)("body").str == hostile.body)
     assert(!conversation.messages.head.content.contains(hostile.body))
     assert(options.tools.isEmpty)
+
+  test("maps completion token usage into the triage response (#31)"):
+    val usage =
+      org.llm4s.llmconnect.model.TokenUsage(promptTokens = 12, completionTokens = 5, totalTokens = 17)
+    val reported =
+      new Triage(ScriptedLLMClient.always(Reply.text(json(valid)).withModel("test-model").withUsage(usage)))
+        .triage(input, taxonomy)
+        .toOption
+        .get
+    assert(reported.usage == Some(triage4s.TokenUsage(12, 5, 17)))
+    assert(reported.model == "test-model")
+    val omitted = new Triage(scripted(json(valid))).triage(input, taxonomy).toOption.get
+    assert(omitted.usage.isEmpty)
+    assert(omitted.model == "test-model")
