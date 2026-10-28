@@ -40,6 +40,14 @@ class RunServiceSpec extends AnyFunSuite:
       try files.iterator().asScala.toVector.sortBy(_.getNameCount).reverse.foreach(Files.delete)
       finally files.close()
 
+  private def withStoreAt(test: (SnapshotStore, java.nio.file.Path) => Unit): Unit =
+    val root = Files.createTempDirectory("triage4s-run-test-")
+    try test(new SnapshotStore(root), root)
+    finally
+      val files = Files.walk(root)
+      try files.iterator().asScala.toVector.sortBy(_.getNameCount).reverse.foreach(Files.delete)
+      finally files.close()
+
   private def awaitCompleted(service: RunService): Unit =
     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
     while service.currentRun("status").str == "running" && System.nanoTime() < deadline do Thread.sleep(10)
@@ -212,5 +220,57 @@ class RunServiceSpec extends AnyFunSuite:
         val items = service.currentRun("items").arr
         assert(items(0)("attempts").num == 3)
         assert(!items(1).obj.contains("attempts"))
+      finally service.close()
+    }
+
+  test("saveSnapshot refuses before any issues are loaded and writes no file (#40)"):
+    withStoreAt { (store, root) =>
+      val service =
+        new RunService((_, _) => Right(Vector(issue(1))), store, () => fail("no model call"), taxonomy)
+      try
+        assert(service.saveSnapshot() == Left("Load issues before saving a snapshot."))
+        assert(!Files.exists(root.resolve("fixtures/issues/latest.json")))
+      finally service.close()
+    }
+
+  test("saveSnapshot waits for the running run and writes no file (#40)"):
+    withStoreAt { (store, root) =>
+      val started = new CountDownLatch(1)
+      val release = new CountDownLatch(1)
+      val classifier = new Classifier:
+        override def triage(input: TriageInput, tax: Taxonomy) =
+          started.countDown()
+          if !release.await(5, TimeUnit.SECONDS) then Left(TriageError.ProviderFailure("test timeout"))
+          else Right(response)
+      val service =
+        new RunService((_, _) => Right(Vector(issue(1))), store, () => Right(classifier), taxonomy)
+      try
+        assert(service.load("live", "open", 1).isRight)
+        assert(service.start(Vector("1"), true).isRight)
+        assert(started.await(5, TimeUnit.SECONDS))
+        assert(service.saveSnapshot() == Left("Wait for the current run before saving."))
+        assert(!Files.exists(root.resolve("fixtures/issues/latest.json")))
+      finally
+        release.countDown()
+        service.close()
+    }
+
+  test("saveSnapshot writes the loaded input after a successful live load (#40)"):
+    withStoreAt { (store, root) =>
+      val service =
+        new RunService(
+          (_, _) => Right(Vector(issue(1), issue(2))),
+          store,
+          () => fail("no model call"),
+          taxonomy
+        )
+      try
+        assert(service.load("live", "open", 1).isRight)
+        assert(
+          service.saveSnapshot() ==
+            Right("Saved local input snapshot. Review redistribution rights before sharing.")
+        )
+        assert(Files.exists(root.resolve("fixtures/issues/latest.json")))
+        assert(store.loadIssues().toOption.get.map(_.input.id) == Vector("1", "2"))
       finally service.close()
     }
