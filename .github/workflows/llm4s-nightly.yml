@@ -41,12 +41,14 @@ jobs:
         id: llm4s
         run: echo "sha=$(git -C llm4s rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
+      # No `set every ... publishArtifact`: `set every` sets the key in every scope, so it also switched off the jar and
+      # the POM, and only the SBOM and ivy.xml were published. LLM4S skips the Scaladoc jar on its own while main is
+      # past a release tag (`isSnapshot` comes from git, not from the version set here).
       - name: Publish LLM4S main locally
         working-directory: llm4s
         run: >
           sbt -batch
           'set every version := "${{ env.LLM4S_NIGHTLY }}"'
-          'set every Compile / packageDoc / publishArtifact := false'
           publishLocal
 
       - name: Build and test triage4s against it
