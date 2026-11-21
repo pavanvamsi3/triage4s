@@ -24,7 +24,7 @@ or repository-code access. Evidence proves that a quote exists, not that the cla
 
 ## Quick start
 
-Requirements: **JDK 21** and **sbt**. The build pins Scala 3.7.1 and published LLM4S 0.5.1
+Requirements: **JDK 21** and **sbt**. The build pins Scala 3.7.1 and published LLM4S 0.6.0
 (`llm4s-core` for the library, plus `llm4s-openai` for the demo's OpenAI client); no sibling LLM4S
 checkout or `publishLocal` step is needed.
 

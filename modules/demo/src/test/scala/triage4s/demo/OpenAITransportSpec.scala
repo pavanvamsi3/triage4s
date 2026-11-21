@@ -9,6 +9,7 @@ import org.llm4s.llmconnect.config.{ContextWindowResolver, OpenAIConfig}
 import org.llm4s.llmconnect.provider.OpenAIClient
 import org.llm4s.llmconnect.model.{CompletionOptions, Conversation, ResponseFormat, UserMessage}
 import org.llm4s.model.ModelRegistryService
+import org.llm4s.security.Secret
 import org.scalatest.funsuite.AnyFunSuite
 import triage4s.*
 
@@ -43,7 +44,7 @@ class OpenAITransportSpec extends AnyFunSuite:
       given ModelRegistryService = ModelRegistryService.default().toOption.get
       given ContextWindowResolver = ContextWindowResolver(summon[ModelRegistryService])
       val config =
-        OpenAIConfig.fromValues("gpt-4o-mini", "test-only-not-a-real-key", None, endpoint).toOption.get
+        OpenAIConfig.fromValues("gpt-4o-mini", Secret("test-only-not-a-real-key"), endpoint).toOption.get
       val client = OpenAIClient(config).toOption.get
       try
         val outcome = client.complete(

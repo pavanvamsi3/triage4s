@@ -5,6 +5,7 @@ import org.llm4s.llmconnect.{LLMClient, LLMConnect}
 import org.llm4s.llmconnect.config.{ContextWindowResolver, OpenAIConfig, ProviderTimeouts}
 import org.llm4s.llmconnect.provider.OpenAIClient
 import org.llm4s.model.ModelRegistryService
+import org.llm4s.security.Secret
 import org.llm4s.types.Result
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
@@ -91,7 +92,7 @@ object AppConfig:
     */
   def providerConfig(config: AppConfig, key: String)(using ContextWindowResolver): Result[OpenAIConfig] =
     OpenAIConfig
-      .fromValues(config.model, key, None, OpenAIBaseUrl)
+      .fromValues(config.model, Secret(key), OpenAIBaseUrl)
       .map(_.withTimeouts(ProviderTimeouts(request = Some(RequestTimeout))))
 
   /** The configured client: the LLM4S provider section `TRIAGE_PROVIDER` names (any provider module on the
