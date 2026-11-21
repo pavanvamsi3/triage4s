@@ -6,7 +6,7 @@ ThisBuild / homepage := Some(url("https://github.com/pavanvamsi3/triage4s"))
 
 // One LLM4S version for every LLM4S module: since 0.5.0 the library is split into modules that are released together.
 // `-Dllm4s.version=...` builds against another one, such as the snapshot of LLM4S main the nightly workflow publishes.
-val llm4sVersion = sys.props.getOrElse("llm4s.version", "0.5.1")
+val llm4sVersion = sys.props.getOrElse("llm4s.version", "0.6.0")
 
 lazy val common = Seq(
   scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked"),

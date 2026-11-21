@@ -18,7 +18,7 @@ Then use the current Scala 3 coordinates in another local build:
 libraryDependencies += "io.github.triage4s" %% "triage4s-core" % "0.1.0-SNAPSHOT"
 ```
 
-The repository's normal build uses Scala 3.7.1 and LLM4S 0.5.1. This module depends on `llm4s-core` only: since LLM4S 0.5.0 provider clients live in their own modules, so your application adds the one it uses, for example `"org.llm4s" %% "llm4s-openai" % "0.5.1"` for `OpenAIClient`.
+The repository's normal build uses Scala 3.7.1 and LLM4S 0.6.0. This module depends on `llm4s-core` only: since LLM4S 0.5.0 provider clients live in their own modules, so your application adds the one it uses, for example `"org.llm4s" %% "llm4s-openai" % "0.6.0"` for `OpenAIClient`.
 
 ## Basic usage
 
