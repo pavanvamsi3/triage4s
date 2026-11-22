@@ -1,5 +1,10 @@
 # Triage4s
 
+[![License: MIT](https://img.shields.io/github/license/pavanvamsi3/triage4s)](LICENSE)
+[![LLM4S](https://img.shields.io/badge/LLM4S-0.5.1-blue)](https://github.com/llm4s/llm4s)
+[![Scala](https://img.shields.io/badge/Scala-3.7.1-red)](https://www.scala-lang.org/)
+[![CI](https://github.com/pavanvamsi3/triage4s/actions/workflows/ci.yml/badge.svg)](https://github.com/pavanvamsi3/triage4s/actions/workflows/ci.yml)
+
 A Scala library for evidence-backed AI triage, with a local dashboard for real GitHub issues.
 
 **LLM4S connects to the model. Triage4s defines the triage rules and validates the answer.**
